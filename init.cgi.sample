@@ -65,13 +65,13 @@ $cf{logdir} = './data/log';
 $cf{numfile} = './data/tmpnum.dat';
 
 # 最大記事数（これを超える記事は古い順に削除）
-$cf{maxlog} = 100;
+$cf{maxlog} = 10000;
 
 # １ページあたりの記事表示件数
 $cf{pg_max} = 10;
 
 # 戻り先URL【URLパス】
-$cf{homepage} = "../index.html";
+$cf{homepage} = "/";
 
 # URLの自動リンク (0=no 1=yes)
 $cf{auto_link} = 1;
