@@ -9,6 +9,7 @@
 # モジュール宣言
 use strict;
 use CGI::Carp qw(fatalsToBrowser);
+use String::Random;
 
 # 設定ファイル認識
 require "./init.cgi";
@@ -32,7 +33,7 @@ bbs_list();
 sub bbs_list {
 	# 記事の修正・削除
 	if ($in{edit} or $in{dele}) { edit_conf(); }
-	
+
 	# レス処理
 	$in{res} =~ s/\D//g;
 	my %res;
@@ -49,19 +50,19 @@ sub bbs_list {
 			}
 		}
 		close(IN);
-		
+
 		if (!$flg) { error("該当記事が見つかりません"); }
-		
+
 		$res{sub} =~ s/^Re://g;
 		$res{sub} =~ s/\[\d+\]\s?//g;
 		$res{sub} = "Re:[$in{res}] $res{sub}";
 		$res{com} = "&gt; $res{com}";
 		$res{com} =~ s|<br( /)?>|\n&gt; |ig;
 	}
-	
+
 	# ページ数定義
 	my $pg = $in{pg} || 0;
-	
+
 	# データオープン
 	my ($i,@log);
 	open(IN,"$cf{logfile}") or error("open err: $cf{logfile}");
@@ -69,26 +70,28 @@ sub bbs_list {
 		$i++;
 		next if ($i < $pg + 1);
 		next if ($i > $pg + $cf{pg_max});
-		
+
 		push(@log,$_);
 	}
 	close(IN);
-	
+
 	# 繰越ボタン作成
 	my $page_btn = make_pager($i,$pg);
-	
+
 	# クッキー取得
 	my @cook = get_cookie();
 	$cook[2] ||= 'http://';
-	
+
+  my @track = track();
+
 	# home or logoff
 	my $home = $cf{enter_pwd} eq '' ? $cf{homepage} : "$cf{bbs_cgi}?mode=logoff";
-	
+
 	# テンプレート読込
 	open(IN,"$cf{tmpldir}/bbs.html") or error("open err: bbs.html");
 	my $tmpl = join('', <IN>);
 	close(IN);
-	
+
 	# 文字置き換え
 	$tmpl =~ s/!([a-z]+_cgi)!/$cf{$1}/g;
 	$tmpl =~ s/!homepage!/$home/g;
@@ -102,7 +105,7 @@ sub bbs_list {
 	$tmpl =~ s/!pg!/$pg/g;
 	$tmpl =~ s|!icon:(\w+\.\w+)!|<img src="$cf{cmnurl}/$1" alt="" class="icon" />|g;
 	$tmpl =~ s/!cmnurl!/$cf{cmnurl}/g;
-	
+
 	# 画像認証作成
 	my ($str_plain,$str_crypt);
 	if ($cf{use_captcha} > 0) {
@@ -112,7 +115,7 @@ sub bbs_list {
 	} else {
 		$tmpl =~ s/<!-- captcha_begin -->.+<!-- captcha_end -->//s;
 	}
-	
+
 	# テンプレート分割
 	my ($head,$loop,$foot) = $tmpl =~ /(.+)<!-- loop_begin -->(.+)<!-- loop_end -->(.+)/s
 			? ($1,$2,$3)
@@ -121,7 +124,7 @@ sub bbs_list {
 	# ヘッダ表示
 	print "Content-type: text/html; charset=shift_jis\n\n";
 	print $head;
-	
+
 	# ループ部
 	foreach (@log) {
 		my ($no,$date,$name,$eml,$sub,$com,$url,$host,$pw,$tim) = split(/<>/);
@@ -129,7 +132,7 @@ sub bbs_list {
 		$com = auto_link($com) if ($cf{auto_link});
 		$com =~ s/([>]|^)(&gt;[^<]*)/$1<span style="color:$cf{ref_col}">$2<\/span>/g if ($cf{ref_col});
 		$com .= qq|<p class="url"><a href="$url" target="_blank">$url</a></p>| if ($url);
-		
+
 		my $tmp = $loop;
 		$tmp =~ s/!num!/$no/g;
 		$tmp =~ s/!sub!/$sub/g;
@@ -139,7 +142,7 @@ sub bbs_list {
 		$tmp =~ s/!bbs_cgi!/$cf{bbs_cgi}/g;
 		print $tmp;
 	}
-	
+
 	# フッタ
 	footer($foot);
 }
@@ -151,7 +154,7 @@ sub find_data {
 	# 条件
 	$in{cond} =~ s/\D//g;
 	$in{word} =~ s|<br />||g;
-	
+
 	# 検索条件プルダウン
 	my %op = (1 => 'AND', 0 => 'OR');
 	my $op_cond;
@@ -162,20 +165,20 @@ sub find_data {
 			$op_cond .= qq|<option value="$_">$op{$_}</option>\n|;
 		}
 	}
-	
+
 	# 検索実行
 	my ($hit,@log) = search($in{word},$in{cond},$cf{logfile}) if ($in{word} ne '');
-	
+
 	# テンプレート
 	open(IN,"$cf{tmpldir}/find.html") or error("open err: find.html");
 	my $tmpl = join('', <IN>);
 	close(IN);
-	
+
 	$tmpl =~ s/!bbs_cgi!/$cf{bbs_cgi}/g;
 	$tmpl =~ s/<!-- op_cond -->/$op_cond/;
 	$tmpl =~ s/!word!/$in{word}/;
 	$tmpl =~ s/!cmnurl!/$cf{cmnurl}/g;
-	
+
 	# 分割
 	my ($head,$loop,$foot) = $tmpl =~ /(.+)<!-- loop_begin -->(.+)<!-- loop_end -->(.+)/s
 			? ($1,$2,$3)
@@ -184,7 +187,7 @@ sub find_data {
 	# ヘッダ部
 	print "Content-type: text/html; charset=shift_jis\n\n";
 	print $head;
-	
+
 	# ループ部
 	foreach (@log) {
 		my ($no,$date,$name,$eml,$sub,$com,$url,$host,$pw,$tim) = split(/<>/);
@@ -192,7 +195,7 @@ sub find_data {
 		$com  = auto_link($com) if ($cf{auto_link});
 		$com =~ s/([>]|^)(&gt;[^<]*)/$1<span style="color:$cf{ref_col}">$2<\/span>/g if ($cf{ref_col});
 		$url  = qq|&lt;<a href="$url" target="_blank">URL</a>&gt;| if ($url);
-		
+
 		my $tmp = $loop;
 		$tmp =~ s/!num!/$no/g;
 		$tmp =~ s/!sub!/$sub/g;
@@ -202,7 +205,7 @@ sub find_data {
 		$tmp =~ s/!comment!/$com/g;
 		print $tmp;
 	}
-	
+
 	# フッタ
 	footer($foot);
 }
@@ -212,22 +215,22 @@ sub find_data {
 #-----------------------------------------------------------
 sub search {
 	my ($word,$cond,$file,$list) = @_;
-	
+
 	# キーワードを配列化
 	$word =~ s/\x81\x40/ /g;
 	my @wd = split(/\s+/,$word);
-	
+
 	# キーワード検索準備（Shift-JIS定義）
 	my $ascii = '[\x00-\x7F]';
 	my $hanka = '[\xA1-\xDF]';
 	my $kanji = '[\x81-\x9F\xE0-\xFC][\x40-\x7E\x80-\xFC]';
-	
+
 	# 検索処理
 	my ($i,@log);
 	open(IN,"$file") or error("open err: $file");
 	while (<IN>) {
 		my ($no,$date,$nam,$eml,$sub,$com,$url,$hos,$pw,$tim) = split(/<>/);
-		
+
 		my $flg;
 		foreach my $wd (@wd) {
 			if ("$nam $eml $sub $com $url" =~ /^(?:$ascii|$hanka|$kanji)*?\Q$wd\E/i) {
@@ -238,17 +241,17 @@ sub search {
 			}
 		}
 		next if (!$flg);
-		
+
 		$i++;
 		if ($list > 0) {
 			next if ($i < $in{pg} + 1);
 			next if ($i > $in{pg} + $list);
 		}
-		
+
 		push(@log,$_);
 	}
 	close(IN);
-	
+
 	# 検索結果
 	return ($i,@log);
 }
@@ -261,40 +264,40 @@ sub past_page {
 	open(IN,"$cf{nofile}") or error("open err: $cf{nofile}");
 	my $pastnum = <IN>;
 	close(IN);
-	
+
 	my $pastnum = sprintf("%04d",$pastnum);
 	$in{pno} =~ s/\D//g;
 	$in{pno} ||= $pastnum;
-	
+
 	# プルダウンタグ作成
 	my $op_pno;
 	for ( my $i = $pastnum; $i > 0; $i-- ) {
 		$i = sprintf("%04d",$i);
-		
+
 		if ($in{pno} == $i) {
 			$op_pno .= qq|<option value="$i" selected="selected">$i</option>\n|;
 		} else {
 			$op_pno .= qq|<option value="$i">$i</option>\n|;
 		}
 	}
-	
+
 	# ページ数
 	my $pg = $in{pg} || 0;
-	
+
 	# 初期化
 	my ($hit,$page_btn,@log);
-	
+
 	# 対象ログ定義
 	my $file = "$cf{pastdir}/" . sprintf("%04d", $in{pno}) . ".cgi";
-	
+
 	# ワード検索
 	if ($in{find} && $in{word} ne '') {
 		# 検索
 		($hit,@log) = search($in{word},$in{cond},$file,$in{list});
-		
+
 		# 結果
 		$page_btn = "検索結果：<b>$hit</b>件 &nbsp;&nbsp;" . pgbtn_old($hit,$in{pno},$pg,'past');
-	
+
 	# ログ一覧
 	} else {
 		# 過去ログオープン
@@ -304,24 +307,24 @@ sub past_page {
 			$i++;
 			next if ($i < $pg + 1);
 			next if ($i > $pg + $cf{pg_max});
-			
+
 			push(@log,$_);
 		}
 		close(IN);
-		
+
 		# 繰越ボタン作成
 		$page_btn = pgbtn_old($i,$in{pno},$pg);
 	}
-	
+
 	# プルダウン作成（検索条件）
 	my %op = make_op();
-	
+
 	# テンプレート読み込み
 	my ($flg,$loop);
 	open(IN,"$cf{tmpldir}/past.html") or error("open err: past.html");
 	my $tmpl = join('', <IN>);
 	close(IN);
-	
+
 	$tmpl =~ s/!past_num!/$in{pno}/g;
 	$tmpl =~ s/!bbs_url!/$cf{html_url}\/index.html/g;
 	$tmpl =~ s/!([a-z]+_cgi)!/$cf{$1}/g;
@@ -330,14 +333,14 @@ sub past_page {
 	$tmpl =~ s/!word!/$in{word}/g;
 	$tmpl =~ s/!page_btn!/$page_btn/g;
 	$tmpl =~ s/!cmnurl!/$cf{cmnurl}/g;
-	
+
 	# テンプレート分割
 	my ($head,$loop,$foot) = $tmpl =~ /(.+)<!-- loop_begin -->(.+)<!-- loop_end -->(.+)/s
 			? ($1,$2,$3)
 			: error('テンプレート不正');
-	
+
 	if ($in{change}) { $in{word} = ''; }
-	
+
 	# 画面表示
 	print "Content-type: text/html; charset=shift_jis\n\n";
 	print $head;
@@ -347,7 +350,7 @@ sub past_page {
 		$com = auto_link($com) if ($cf{auto_link});
 		$com =~ s/([>]|^)(&gt;[^<]*)/$1<span style="color:$cf{ref_col}">$2<\/span>/g if ($cf{ref_col});
 		$url = qq|&lt;<a href="$url" target="_blank">URL</a>&gt;| if ($url);
-		
+
 		my $tmp = $loop;
 		$tmp =~ s/!num!/$no/g;
 		$tmp =~ s/!sub!/$sub/g;
@@ -357,7 +360,7 @@ sub past_page {
 		$tmp =~ s/!comment!/$com/g;
 		print $tmp;
 	}
-	
+
 	# フッタ
 	print footer($foot);
 	exit;
@@ -370,9 +373,9 @@ sub note_page {
 	open(IN,"$cf{tmpldir}/note.html") or error("open err: note.html");
 	my $tmpl = join('', <IN>);
 	close(IN);
-	
+
 	$tmpl =~ s/!cmnurl!/$cf{cmnurl}/g;
-	
+
 	print "Content-type: text/html; charset=shift_jis\n\n";
 	print $tmpl;
 	exit;
@@ -383,7 +386,7 @@ sub note_page {
 #-----------------------------------------------------------
 sub auto_link {
 	my $text = shift;
-	
+
 	$text =~ s/(s?https?:\/\/([\w-.!~*'();\/?:\@=+\$,%#]|&amp;)+)/<a href="$1" target="_blank">$1<\/a>/g;
 	return $text;
 }
@@ -393,12 +396,12 @@ sub auto_link {
 #-----------------------------------------------------------
 sub make_pager {
 	my ($i,$pg) = @_;
-	
+
 	# ページ繰越数定義
 	$cf{pg_max} ||= 10;
 	my $next = $pg + $cf{pg_max};
 	my $back = $pg - $cf{pg_max};
-	
+
 	# ページ繰越ボタン作成
 	my @pg;
 	if ($back >= 0 || $next < $i) {
@@ -414,7 +417,7 @@ sub make_pager {
 			$x++;
 			$y += $cf{pg_max};
 			$z -= $cf{pg_max};
-			
+
 			if ($flg) { $w++; }
 			last if ($w >= 5 && @pg >= 10);
 		}
@@ -427,7 +430,7 @@ sub make_pager {
 	if ($next < $i) {
 		$ret .= qq!<li><a href="$cf{bbs_cgi}?pg=$next">&raquo;</a></li>\n!;
 	}
-	
+
 	# 結果を返す
 	return $ret ? qq|<ul class="pager">\n$ret</ul>| : '';
 }
@@ -456,6 +459,41 @@ sub get_cookie {
 		push(@cook,$_);
 	}
 	return @cook;
+}
+
+#-----------------------------------------------------------
+#  トラッキング
+#-----------------------------------------------------------
+sub track {
+  my $host = $ENV{REMOTE_HOST};
+  my $addr = $ENV{REMOTE_ADDR};
+  my $time = time;
+  my ($min,$hour,$mday,$mon,$year,$wday) = (localtime($time))[1..6];
+  my @wk = ('Sun','Mon','Tue','Wed','Thu','Fri','Sat');
+  my $date = sprintf("%04d/%02d/%02d(%s) %02d:%02d",
+        $year+1900,$mon+1,$mday,$wk[$wday],$hour,$min);
+  my $cookie = $ENV{HTTP_COOKIE};
+
+  my %cookie;
+  foreach (split(/;/, $cookie)) {
+    my ($key, $val) = split(/=/);
+    $key =~ s/\s//g;
+    $cookie{$key} = $val;
+  }
+
+  # もしトラッキング用のクッキーがセットされていればファイルに保存する
+  # 保存されていなければ新しく発行してセットさせる
+  if ($cookie{tracking_id}) {
+    open(DAT, ">> $cf{trackingfile}") or error("open err: $cf{trackingfile}");
+    my $new = "$date<>$cookie{tracking_id}<>$host<>$addr";
+    print DAT "$new\n";
+    close(DAT);
+  }
+  else {
+    my $random = String::Random->new();
+    my $tracking_id = $random->randregex("[a-zA-Z0-9]{64}");
+    print "Set-Cookie: $cf{tracking_id}=$tracking_id\n";
+  }
 }
 
 #-----------------------------------------------------------
@@ -491,7 +529,7 @@ sub pgbtn_old {
 			$x++;
 			$y += $cf{pg_max};
 			$i -= $cf{pg_max};
-			
+
 			if ($flg) { $w++; }
 			last if ($w >= 5 && @pg >= 10);
 		}
@@ -504,7 +542,7 @@ sub pgbtn_old {
 	if ($next < $i) {
 		$ret .= qq!<li><a href="$link&amp;pg=$next">&raquo;</a></li>\n!;
 	}
-	
+
 	# 結果を返す
 	return $ret ? qq|<ul class="pager">\n$ret</ul>| : '';
 }
@@ -561,20 +599,20 @@ sub edit_conf {
 		}
 	}
 	close(IN);
-	
+
 	if (!$log{flg}) { error("該当記事が見つかりません"); }
-	
+
 	open(IN,"$cf{tmpldir}/pwd.html") or error("open err: pwd.html");
 	my $tmpl = join('', <IN>);
 	close(IN);
-	
+
 	my $pg = $in{pg} || 0;
 	$tmpl =~ s/!(\w+_\w+)!/$cf{$1}/g;
 	$tmpl =~ s/!(sub|name|date|num)!/$log{$1}/g;
 	$tmpl =~ s/!pg!/$pg/g;
 	$tmpl =~ s|!icon:(\w+\.\w+)!|<img src="$cf{cmnurl}/$1" alt="" class="icon" />|g;
 	$tmpl =~ s/!cmnurl!/$cf{cmnurl}/g;
-	
+
 	print "Content-type: text/html; charset=shift_jis\n\n";
 	print $tmpl;
 	exit;
