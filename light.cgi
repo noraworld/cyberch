@@ -85,7 +85,8 @@ sub bbs_list {
   my @track = track();
 
 	# home or logoff
-	my $home = $cf{enter_pwd} eq '' ? $cf{homepage} : "$cf{bbs_cgi}?mode=logoff";
+	my $home = $cf{homepage};
+	# my $home = $cf{enter_pwd} eq '' ? $cf{homepage} : "$cf{bbs_cgi}?mode=logoff";
 
 	# テンプレート読込
 	open(IN,"$cf{tmpldir}/bbs.html") or error("open err: bbs.html");
