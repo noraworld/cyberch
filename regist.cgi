@@ -164,11 +164,11 @@ sub dellog {
 #-----------------------------------------------------------
 sub mail_to {
 	my ($date,$host) = @_;
-	
+
 	# 件名をMIMEエンコード
 	require './lib/jcode.pl';
 	my $msub = mime_unstructured_header("BBS: $in{sub}");
-	
+
 	# コメント内の改行復元
 	my $com = $in{comment};
 	$com =~ s|<br />|\n|g;
@@ -324,15 +324,15 @@ sub decrypt {
 #-----------------------------------------------------------
 sub message {
 	my $msg = shift;
-	
+
 	open(IN,"$cf{tmpldir}/message.html") or error("open err: message.html");
 	my $tmpl = join('', <IN>);
 	close(IN);
-	
+
 	$tmpl =~ s/!bbs_cgi!/$cf{bbs_cgi}/g;
 	$tmpl =~ s/!message!/$msg/g;
 	$tmpl =~ s/!cmnurl!/$cf{cmnurl}/g;
-	
+
 	print "Content-type: text/html; charset=shift_jis\n\n";
 	print $tmpl;
 	exit;
@@ -378,16 +378,16 @@ sub save_log {
 		error("二重投稿は禁止です");
 	}
 	# 連続投稿チェック
-	my $flg;
-	if ($cf{regCtl} == 1) {
-		if ($host eq $hos && $time - $tim < $cf{wait}) { $flg = 1; }
-	} elsif ($cf{regCtl} == 2) {
-		if ($time - $tim < $cf{wait}) { $flg = 1; }
-	}
-	if ($flg) {
-		close(DAT);
-		error("現在投稿制限中です。もうしばらくたってから投稿をお願いします");
-	}
+	# my $flg;
+	# if ($cf{regCtl} == 1) {
+	# 	if ($host eq $hos && $time - $tim < $cf{wait}) { $flg = 1; }
+	# } elsif ($cf{regCtl} == 2) {
+	# 	if ($time - $tim < $cf{wait}) { $flg = 1; }
+	# }
+	# if ($flg) {
+	# 	close(DAT);
+	# 	error("現在投稿制限中です。もうしばらくたってから投稿をお願いします");
+	# }
 
 	# 記事No採番
 	$no++;
@@ -558,7 +558,7 @@ sub b64encode {
     }/eg;
     if ($mode == 1) { $ret =~ s/..$/==/; }
     if ($mode == 2) { $ret =~ s/.$/=/; }
-    
+
     return $ret;
 }
 
